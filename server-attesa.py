@@ -2,6 +2,8 @@ import os
 import psycopg2
 import flask_login
 import random
+import json
+import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import LoginManager, UserMixin, login_user, login_required, current_user
 from psycopg2 import Error
@@ -48,7 +50,7 @@ def load_user(id):
 conn = psycopg2.connect(host = "192.168.0.199", database = "filez", user = "postgres", password = "1")
 cur = conn.cursor()
 
-@app.route('/')
+@app.route('/dashboard')
 def root():
     return render_template('dashboard-ok.html')
 
@@ -138,28 +140,41 @@ def logout():
     logout_user()
 
 @app.route('/api/get_files')
+@login_required
 def get_files():
-    location = request.args.get('location')
+    location = request.args.get('location', default='my_files')
+    session_username = current_user.username
 
     if location == 'my_files':
-        user_folders = [f for f in os.listdir(FILES_ROOT) if os.path.isdir(os.path.join(FILES_ROOT, f))]
+        user_dir = FILES_ROOT + '/' + str(session_username)
+        print(user_dir)
+        user_folders = [f for f in os.listdir(user_dir) if os.path.isdir(os.path.join(user_dir, f))]
+        print(user_folders)
 
         all_files = []
 
         for folder in user_folders:
-            folder_path = os.path.join(FILES_ROOT, folder)
+            folder_path = os.path.join(user_dir, folder)
             if os.path.isdir(folder_path):
                 for root, dirs, files in os.walk(folder_path):
                     for filename in files:
+                        if filename.endswith('.json'):
+                            continue
+                        
                         file_path = os.path.join(root, filename)
-                        file_info = {
-                            "name": filename,
-                            "upload_date": "DATA DI CARICAMENTO",
-                            "owner": "sempre io",
-                            "location": root,                                           # da strippare la location
-                            "url": f"/users/tester/files/{location}/{filename}"
-                        }
+
+                        #Read the .json
+                        json_filename = os.path.splitext(filename)[0] + '.json'
+                        json_file_path = os.path.join(root, json_filename)
+                        if os.path.exists(json_file_path):
+                            with open(json_file_path, 'r') as json_file:
+                                file_info = json.load(json_file)
+                        
+                        else:
+                            file_info = {}
+
                         all_files.append(file_info)
+        
         return jsonify(all_files)
     
     else:
@@ -189,8 +204,9 @@ def upload():
 
     files = request.files.getlist('files')
     location = request.form['location']
-     
-    print (location)
+
+    if location == "":
+        location = "my_files"
 
     for file in files:
         if file.filename == '':
@@ -201,13 +217,38 @@ def upload():
     if not session_username:
         return jsonify({"status": "error", "error_text": "User not logged in."})
         
-    upload_folder = os.path.join(FILES_ROOT, str(session_username))
+    upload_folder = os.path.join(FILES_ROOT, str(session_username), location)
+    print(upload_folder)
 
     if not os.path.exists(upload_folder):
         os.makedirs(upload_folder)
     
     for file in files:
         file.save(os.path.join(upload_folder, file.filename))
+
+        upload_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        #Location adjustments
+        if location == "my_files":
+            location = "My files"
+        elif location == "shared":
+            location = "Shared"
+        elif location == "trash":
+            location = "Trash"
+
+        file_data = {                       # AGGIUNGERE RAW
+            "filename": file.filename,
+            "owner": session_username,
+            "upload_date": upload_date,
+            "location": location,
+            "shared": False,
+            "shared_with": None
+        }
+
+        json_filename = os.path.splitext(file.filename)[0] + '.json'
+        json_path = os.path.join(upload_folder, json_filename)
+        with open(json_path, 'w') as json_file:
+            json_file.write(json.dumps(file_data))
     
     return jsonify({"status": "success"})
 

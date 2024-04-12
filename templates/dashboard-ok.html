@@ -159,12 +159,14 @@
         // FILE LOADER
         window.addEventListener('DOMContentLoaded', (event) => {
             const urlParams = new URLSearchParams(window.location.search);
-            const location = urlParams.get('location');
+            var location = urlParams.get('location');
 
-            if (location) {
-                loadFiles(location);
-                console.log(location);
+            if (!location) {
+                location = 'my_files';
             }
+
+            loadFiles(location);
+            console.log(location);
         });
 
         function loadFiles(location) {
@@ -186,7 +188,7 @@
             files.forEach(file => {
                 const newRow = document.createElement('tr')
                 newRow.innerHTML = `
-                    <td><a href="${file.url}">${file.name}</a></td>
+                    <td><a href="${file.url}">${file.filename}</a></td>
                     <td>${file.upload_date}</td>
                     <td>${file.owner}</td>
                     <td>${file.location}</td>
@@ -255,6 +257,7 @@
             xhr.onload = function() {
                 if (xhr.status === 200) {
                     console.log("200 OK (Uploaded)")
+                    location.reload();
                 } else {
                     console.error("Failed: ", xhr.status, xhr.error_text);
                     alert("Failed to upload files.");
