@@ -15,7 +15,7 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'ZJ48dnJD85jAL93jADn398!73nDS38@nfd38'
 
 # VARIABLES
-FILES_ROOT = "./users/tester"
+FILES_ROOT = "./users/uploads"
 
 #LOGIN MANAGER
 
@@ -182,5 +182,35 @@ def get_files():
         else:
             return jsonify([])
 
+@app.route('/api/upload_files', methods=['POST'])
+def upload():
+    #if 'file' not in request.files:
+    #    return jsonify({"status": "error", "error_text": "No files selected."}), 400
+
+    files = request.files.getlist('files')
+    location = request.form['location']
+     
+    print (location)
+
+    for file in files:
+        if file.filename == '':
+            return jsonify({"status": "error", "error_text": "No files selected."})
+
+    session_username = current_user.username
+
+    if not session_username:
+        return jsonify({"status": "error", "error_text": "User not logged in."})
+        
+    upload_folder = os.path.join(FILES_ROOT, str(session_username))
+
+    if not os.path.exists(upload_folder):
+        os.makedirs(upload_folder)
+    
+    for file in files:
+        file.save(os.path.join(upload_folder, file.filename))
+    
+    return jsonify({"status": "success"})
+
+        
 if __name__ == '__main__':
 	app.run(host='0.0.0.0', port=8080, debug=True)
