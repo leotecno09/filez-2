@@ -60,7 +60,7 @@
                             <a class="nav-link" href="#">{{current_user.username}}</a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" href="#">Sign up</a>
+                            <a class="nav-link" href="/account/logout">Logout</a>
                         </li>
                     </ul>
                 </div>
@@ -80,22 +80,22 @@
                             <p class="nav-text" style="font-weight: bold; margin-left: 15px;">Locations</p>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link active" href="/?location=my_files">
+                            <a class="nav-link active" href="/dashboard?location=my_files">
                                 <ion-icon name="file-tray-outline"></ion-icon> My files
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link active" href="/?location=shared">
+                            <a class="nav-link active" href="/dashboard?location=shared">
                                 <ion-icon name="share-social-outline"></ion-icon> Shared
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link active" href="/?location=folders">
+                            <a class="nav-link active" href="/dashboard?location=folders">
                                 <ion-icon name="folder-outline"></ion-icon> Folders
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link active" href="/?location=trash">
+                            <a class="nav-link active" href="/dashboard?location=trash">
                                 <ion-icon name="trash-outline"></ion-icon> Trash
                             </a>
                         </li>
@@ -193,7 +193,7 @@
                     <td>${file.owner}</td>
                     <td>${file.location}</td>
                     <td>
-                        <button class="btn btn-primary btn-sm">Download</button>
+                        <a href="${file.raw_url}"><button class="btn btn-primary btn-sm">Download</button></a>
                         <button class="btn btn-primary btn-sm">Share</button>
                         <button class="btn btn-danger btn-sm">Delete</button>
                     </td>

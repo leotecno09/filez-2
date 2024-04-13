@@ -5,9 +5,9 @@ import random
 import json
 import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_login import LoginManager, UserMixin, login_user, login_required, current_user
+from flask_login import LoginManager, UserMixin, login_user, login_required, current_user, logout_user
 from psycopg2 import Error
-from flask import Flask, render_template, request, jsonify, url_for, redirect
+from flask import Flask, render_template, request, jsonify, url_for, redirect, send_file
 from datetime import date
 
 app = Flask(__name__)
@@ -20,9 +20,9 @@ app.config['SECRET_KEY'] = 'ZJ48dnJD85jAL93jADn398!73nDS38@nfd38'
 FILES_ROOT = "./users/uploads"
 
 #LOGIN MANAGER
-
 login_manager = flask_login.LoginManager()
 login_manager.init_app(app)
+login_manager.login_view = '/account/login'
 
 class User(UserMixin):
     def __init__(self, id):
@@ -50,7 +50,16 @@ def load_user(id):
 conn = psycopg2.connect(host = "192.168.0.199", database = "filez", user = "postgres", password = "1")
 cur = conn.cursor()
 
+#FUNZIONI BELLE A CASO (pt.2)
+def find_json_file(folder_path, filecode):
+    for root, dirs, files in os.walk(folder_path):
+        for file_name in files:
+            if file_name == f"{filecode}.json":
+                return os.path.join(root, file_name)
+    return None
+
 @app.route('/dashboard')
+@login_required
 def root():
     return render_template('dashboard-ok.html')
 
@@ -102,6 +111,7 @@ def login():
     if request.method == 'POST':
         username = request.form['username']
         password = request.form['password']
+        #next = request.args.get("next")
 
         try:
             cur.execute("SELECT * FROM users WHERE username = %s OR email = %s", (format(username), format(username)))
@@ -138,9 +148,9 @@ def login():
 @login_required
 def logout():
     logout_user()
+    return redirect(url_for('login'))
 
 @app.route('/api/get_files')
-@login_required
 def get_files():
     location = request.args.get('location', default='my_files')
     session_username = current_user.username
@@ -178,19 +188,22 @@ def get_files():
         return jsonify(all_files)
     
     else:
-        folder_path = f"./users/tester/files/{location}"
+        folder_path = f"{FILES_ROOT}/{current_user.username}/{location}"
+        print(folder_path)
         if os.path.isdir(folder_path):
             files = []
             for filename in os.listdir(folder_path):
                 file_path = os.path.join(folder_path, filename)
                 if os.path.isfile(file_path):
-                    file_info = {
-                        "name": filename,
-                        "upload_date": "DATA DI CARICAMENTO",
-                        "owner": "sempre io",
-                        "location": location,
-                        "url": f"/users/tester/files/{location}/{filename}"
-                    }
+                    if filename.endswith('.json'):
+                        continue
+                    
+                    json_filename = os.path.splitext(filename)[0] + '.json'
+                    json_file_path = os.path.join(folder_path, json_filename)
+                    if os.path.exists(json_file_path):
+                        with open(json_file_path, 'r') as json_file:
+                            file_info = json.load(json_file)
+
                     files.append(file_info)
                 
             return jsonify(files)
@@ -204,6 +217,7 @@ def upload():
 
     files = request.files.getlist('files')
     location = request.form['location']
+    location_viewed = ""
 
     if location == "":
         location = "my_files"
@@ -224,34 +238,73 @@ def upload():
         os.makedirs(upload_folder)
     
     for file in files:
-        file.save(os.path.join(upload_folder, file.filename))
+        filecode = ''.join([str(random.randint(0, 9)) for _ in range(15)])
+        file_extension = os.path.splitext(file.filename)[1]
+        filename_ok = filecode + file_extension
+        file.save(os.path.join(upload_folder, filename_ok))
 
         upload_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         #Location adjustments
         if location == "my_files":
-            location = "My files"
+            location_viewed = "My files"
         elif location == "shared":
-            location = "Shared"
+            location_viewed = "Shared"
         elif location == "trash":
-            location = "Trash"
+            location_viewed = "Trash"
+
 
         file_data = {                       # AGGIUNGERE RAW
             "filename": file.filename,
             "owner": session_username,
             "upload_date": upload_date,
-            "location": location,
+            "location": location_viewed,
+            "file_code": filecode,
+            "original_path": f"users/uploads/{session_username}/{location}/{filecode}{file_extension}",
+            "raw_url": f"/r/{filecode}",
             "shared": False,
             "shared_with": None
         }
 
-        json_filename = os.path.splitext(file.filename)[0] + '.json'
+        json_filename = filecode + '.json'
         json_path = os.path.join(upload_folder, json_filename)
         with open(json_path, 'w') as json_file:
             json_file.write(json.dumps(file_data))
     
     return jsonify({"status": "success"})
 
+@app.route('/r/<filecode>')
+@login_required
+def get_raw_file(filecode):
+    json_filename = f"{filecode}.json"
+    session_username = current_user.username
+    
+    #PESCA IL FILE .JSON (fare un database era meglio...)
+    user_dir = FILES_ROOT + '/' + str(session_username)
+    print(user_dir)
+    user_folders = [f for f in os.listdir(user_dir) if os.path.isdir(os.path.join(user_dir, f))]
+    print(user_folders)
+
+    all_files = []
+
+    for folder in user_folders:
+        folder_path = os.path.join(user_dir, folder)
+        if os.path.isdir(folder_path):
+            json_file_path = find_json_file(folder_path, filecode)
+            if json_file_path:
+                with open(json_file_path, 'r') as json_file:
+                    file_data = json.load(json_file)
+                    owner = file_data.get('owner')
+                    original_path = file_data.get('original_path')
+
+                    if owner == current_user.username:
+                        return send_file(original_path, as_attachment=True)
+                    else:
+                        return "You cannot access this file", 401
+            else:
+                return "File not found", 404
+
+    
         
 if __name__ == '__main__':
 	app.run(host='0.0.0.0', port=8080, debug=True)
