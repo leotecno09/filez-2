@@ -276,8 +276,15 @@ def upload():
 @app.route('/r/<filecode>')
 @login_required
 def get_raw_file(filecode):
+    attachment = request.args.get('a')
+    #print(attachment)
     json_filename = f"{filecode}.json"
     session_username = current_user.username
+
+    if attachment == "False":
+        attachment = False
+    else:
+        attachment = True
     
     #PESCA IL FILE .JSON (fare un database era meglio...)
     user_dir = FILES_ROOT + '/' + str(session_username)
@@ -296,9 +303,10 @@ def get_raw_file(filecode):
                     file_data = json.load(json_file)
                     owner = file_data.get('owner')
                     original_path = file_data.get('original_path')
+                    original_filename = file_data.get('filename')
 
                     if owner == current_user.username:
-                        return send_file(original_path, as_attachment=True)
+                        return send_file(original_path, as_attachment=attachment)
                     else:
                         return "You cannot access this file", 401
             else:
