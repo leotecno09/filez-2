@@ -29,8 +29,10 @@ function updateFileTable(files) {
 
     files.forEach(file => {
         const newRow = document.createElement('tr')
+        const file_type = `${file.filename}`.split('.').pop();
+        console.log(file_type);
         newRow.innerHTML = `
-            <td><a href="#" onclick="openFileViewer(${file.file_code})">${file.filename}</a></td>
+            <td><a href="#" onclick="openFileViewer(${file.file_code}, '${file_type}')">${file.filename}</a></td>
             <td>${file.upload_date}</td>
             <td>${file.owner}</td>
             <td>${file.location}</td>
