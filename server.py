@@ -157,9 +157,9 @@ def get_files():
 
     if location == 'my_files':
         user_dir = FILES_ROOT + '/' + str(session_username)
-        print(user_dir)
+        #print(user_dir)
         user_folders = [f for f in os.listdir(user_dir) if os.path.isdir(os.path.join(user_dir, f))]
-        print(user_folders)
+        #print(user_folders)
 
         all_files = []
 
@@ -273,6 +273,16 @@ def upload():
     
     return jsonify({"status": "success"})
 
+@app.route('/api/share_file', methods=['POST'])
+@login_required
+def share_file():
+    filecode = request.form['filecode']
+    shareUsers = request.form['shareUsers']
+
+    print(filecode, shareUsers)
+
+    return jsonify({"result": "success"})
+
 @app.route('/r/<filecode>')
 @login_required
 def get_raw_file(filecode):
@@ -288,9 +298,9 @@ def get_raw_file(filecode):
     
     #PESCA IL FILE .JSON (fare un database era meglio...)
     user_dir = FILES_ROOT + '/' + str(session_username)
-    print(user_dir)
+    #print(user_dir)
     user_folders = [f for f in os.listdir(user_dir) if os.path.isdir(os.path.join(user_dir, f))]
-    print(user_folders)
+    #print(user_folders)
 
     all_files = []
 
@@ -309,8 +319,8 @@ def get_raw_file(filecode):
                         return send_file(original_path, as_attachment=attachment)
                     else:
                         return "You cannot access this file", 401
-            else:
-                return "File not found", 404
+
+    return "File not found", 404
 
     
         

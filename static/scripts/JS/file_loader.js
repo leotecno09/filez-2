@@ -38,10 +38,11 @@ function updateFileTable(files) {
             <td>${file.location}</td>
             <td>
                 <a href="${file.raw_url}"><button class="btn btn-primary btn-sm">Download</button></a>
-                <button class="btn btn-primary btn-sm">Share</button>
+                <button class="btn btn-primary btn-sm shareBtn" onclick="openShareModal('${file.filename}', '${file.file_code}')">Share</button>
                 <button class="btn btn-danger btn-sm">Delete</button>
             </td>
         `;
         fileTableBody.appendChild(newRow);
     });
 }
+
