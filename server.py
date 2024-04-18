@@ -150,9 +150,10 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
-@app.route('/api/get_files')
+@app.route('/api/get_files')                                        # DA RIVEDERE E MIGLIORARE
 def get_files():
     location = request.args.get('location', default='my_files')
+    print(location)
     session_username = current_user.username
 
     if location == 'my_files':
@@ -168,26 +169,37 @@ def get_files():
             if os.path.isdir(folder_path):
                 for root, dirs, files in os.walk(folder_path):
                     for filename in files:
-                        if filename.endswith('.json'):
-                            continue
+                        #if filename.endswith('.json'):
+                        #    continue
                         
                         file_path = os.path.join(root, filename)
 
                         #Read the .json
-                        json_filename = os.path.splitext(filename)[0] + '.json'
-                        json_file_path = os.path.join(root, json_filename)
-                        if os.path.exists(json_file_path):
-                            with open(json_file_path, 'r') as json_file:
-                                file_info = json.load(json_file)
-                        
-                        else:
-                            file_info = {}
+                        #json_filename = os.path.splitext(filename)[0] + '.json'
+                        #json_file_path = os.path.join(root, json_filename)
+                        #if os.path.exists(json_file_path):
+                        #    with open(json_file_path, 'r') as json_file:
+                        #        file_info = json.load(json_file)
+                        cur.execute("SELECT * FROM files")
+                        rows = cur.fetchall()
 
-                        all_files.append(file_info)
+                        if cur.rowcount == 0:
+                            all_files = []
+
+                        for row in rows:
+                            all_files.append({
+                                'filename': row[0],
+                                'owner': row[1],
+                                'upload_date': row[2],
+                                'location': row[3],
+                                'file_code': row[4],
+                                'original_path': row[5],
+                                'shared': row[6]
+                            })
         
         return jsonify(all_files)
     
-    else:
+    else:                                                                                           # SISTEMARE CON DB
         folder_path = f"{FILES_ROOT}/{current_user.username}/{location}"
         print(folder_path)
         if os.path.isdir(folder_path):
@@ -239,22 +251,21 @@ def upload():
     
     for file in files:
         filecode = ''.join([str(random.randint(0, 9)) for _ in range(15)])
-        file_extension = os.path.splitext(file.filename)[1]
-        filename_ok = filecode + file_extension
-        file.save(os.path.join(upload_folder, filename_ok))
+        #file_extension = os.path.splitext(file.filename)[1]
+        #filename_ok = filecode + file_extension
 
         upload_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         #Location adjustments
-        if location == "my_files":
-            location_viewed = "My files"
-        elif location == "shared":
-            location_viewed = "Shared"
-        elif location == "trash":
-            location_viewed = "Trash"
+        #if location == "my_files":
+        #    location_viewed = "My files"
+        #elif location == "shared":
+        #    location_viewed = "Shared"
+        #elif location == "trash":
+        #    location_viewed = "Trash"
 
 
-        file_data = {                       # AGGIUNGERE RAW
+        '''file_data = {                       # AGGIUNGERE RAW
             "filename": file.filename,
             "owner": session_username,
             "upload_date": upload_date,
@@ -264,12 +275,20 @@ def upload():
             "raw_url": f"/r/{filecode}",
             "shared": False,
             "shared_with": None
-        }
+        }'''
 
-        json_filename = filecode + '.json'
-        json_path = os.path.join(upload_folder, json_filename)
-        with open(json_path, 'w') as json_file:
-            json_file.write(json.dumps(file_data))
+        shared = "False"
+        original_path = f"users/uploads/{session_username}/{location}/{file.filename}"
+
+        #json_filename = filecode + '.json'
+        #json_path = os.path.join(upload_folder, json_filename)
+        #with open(json_path, 'w') as json_file:
+        #    json_file.write(json.dumps(file_data))
+
+        cur.execute('INSERT INTO files (filename, owner, upload_date, location, file_code, original_path, shared)' 'VALUES (%s, %s, %s, %s, %s, %s, %s)', (format(file.filename), format(session_username), format(upload_date), format(location), int(filecode), format(original_path), format(shared)))
+        conn.commit()
+
+        file.save(os.path.join(upload_folder, file.filename))
     
     return jsonify({"status": "success"})
 
