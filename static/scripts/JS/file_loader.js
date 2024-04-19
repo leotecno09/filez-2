@@ -38,7 +38,7 @@ function updateFileTable(files) {
             <td>${file.location}</td>
             <td>
                 <a href="/r/${file.file_code}"><button class="btn btn-primary btn-sm">Download</button></a>
-                <button class="btn btn-primary btn-sm shareBtn" onclick="openShareModal('${file.filename}', '${file.file_code}')">Share</button>
+                ${file.shared === "True" ? `<button class="btn btn-danger btn-sm">Unshare</button>&nbsp;<button class="btn btn-success btn-sm">Copy share link</button>` : `<button class="btn btn-primary btn-sm shareBtn" onclick="openShareModal('${file.filename}', '${file.file_code}')">Share</button>`}
                 <button class="btn btn-danger btn-sm">Delete</button>
             </td>
         `;

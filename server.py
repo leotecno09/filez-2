@@ -156,71 +156,51 @@ def get_files():
     print(location)
     session_username = current_user.username
 
-    if location == 'my_files':
-        user_dir = FILES_ROOT + '/' + str(session_username)
-        #print(user_dir)
-        user_folders = [f for f in os.listdir(user_dir) if os.path.isdir(os.path.join(user_dir, f))]
-        #print(user_folders)
+    files = []
 
-        all_files = []
-
-        for folder in user_folders:
-            folder_path = os.path.join(user_dir, folder)
-            if os.path.isdir(folder_path):
-                for root, dirs, files in os.walk(folder_path):
-                    for filename in files:
-                        #if filename.endswith('.json'):
-                        #    continue
-                        
-                        file_path = os.path.join(root, filename)
-
-                        #Read the .json
-                        #json_filename = os.path.splitext(filename)[0] + '.json'
-                        #json_file_path = os.path.join(root, json_filename)
-                        #if os.path.exists(json_file_path):
-                        #    with open(json_file_path, 'r') as json_file:
-                        #        file_info = json.load(json_file)
-                        cur.execute("SELECT * FROM files")
-                        rows = cur.fetchall()
-
-                        if cur.rowcount == 0:
-                            all_files = []
-
-                        for row in rows:
-                            all_files.append({
-                                'filename': row[0],
-                                'owner': row[1],
-                                'upload_date': row[2],
-                                'location': row[3],
-                                'file_code': row[4],
-                                'original_path': row[5],
-                                'shared': row[6]
-                            })
+    if location == "my_files":
+        try:
+            cur.execute('SELECT * FROM files WHERE owner = %s', (format(session_username),))
+            rows = cur.fetchall()
+        except Error as e:
+            print("Error during SQL query: ", e)
+            return jsonify({"result": "error", "error_text": e})
         
-        return jsonify(all_files)
-    
-    else:                                                                                           # SISTEMARE CON DB
-        folder_path = f"{FILES_ROOT}/{current_user.username}/{location}"
-        print(folder_path)
-        if os.path.isdir(folder_path):
-            files = []
-            for filename in os.listdir(folder_path):
-                file_path = os.path.join(folder_path, filename)
-                if os.path.isfile(file_path):
-                    if filename.endswith('.json'):
-                        continue
-                    
-                    json_filename = os.path.splitext(filename)[0] + '.json'
-                    json_file_path = os.path.join(folder_path, json_filename)
-                    if os.path.exists(json_file_path):
-                        with open(json_file_path, 'r') as json_file:
-                            file_info = json.load(json_file)
+        for row in rows:
+            files.append({
+                'filename': row[0],
+                'owner': row[1],
+                'upload_date': row[2],
+                'location': row[3],
+                'file_code': row[4],
+                'original_path': row[5],
+                'shared': row[6]           
+            })
+        
+        return jsonify(files)
 
-                    files.append(file_info)
-                
-            return jsonify(files)
-        else:
-            return jsonify([])
+    try:
+        cur.execute('SELECT * FROM files WHERE location = %s AND owner = %s', (format(location), format(session_username)))
+        rows = cur.fetchall()
+    except Error as e:
+        print("Error during SQL query: ", e)
+        return jsonify({"result": "error", "error_text": e})
+    
+    for row in rows:
+        files.append({
+            'filename': row[0],
+            'owner': row[1],
+            'upload_date': row[2],
+            'location': row[3],
+            'file_code': row[4],
+            'original_path': row[5],
+            'shared': row[6]           
+        })
+    
+    return jsonify(files)
+
+
+        
 
 @app.route('/api/upload_files', methods=['POST'])
 def upload():
@@ -296,9 +276,43 @@ def upload():
 @login_required
 def share_file():
     filecode = request.form['filecode']
-    shareUsers = request.form['shareUsers']
+    shareUsersList = request.form['shareUsers']
 
-    print(filecode, shareUsers)
+    if shareUsersList:
+        array_shareUsers = shareUsersList.split(",")
+        array_shareUsers = [element.strip() for element in array_shareUsers]
+        #print(array_shareUsers)
+
+        if current_user.email in array_shareUsers:
+            return jsonify({"result": "error", "error_text": "You cannot share a file with yourself."})
+
+        shareUsers_id = []
+
+        for user in array_shareUsers:   # Take users id from db
+            try:
+                cur.execute("SELECT id FROM users WHERE email = %s", (format(user),))
+                results = cur.fetchone()
+                shareUsers_id.append(results)
+                print(shareUsers_id)
+            except Error as e:
+                print("Error during SQL query: ", e)
+                return jsonify({"result": "error", "error_text": e})
+
+        for user_id_tuple in shareUsers_id:
+            user_id = user_id_tuple[0]
+            print(user_id)
+            try:
+                cur.execute("INSERT INTO file_user_shared (file_code, user_id)" "VALUES (%s, %s)", (int(filecode), int(user_id)))
+                conn.commit()
+            except Error as e:
+                print("Error during SQL query: ", e)
+                return jsonify({"result": "error", "error_text": e})
+
+    else:
+        print("No users list.")
+
+    cur.execute("UPDATE files SET shared = %s WHERE file_code = %s", (format("True"), int(filecode)))
+    conn.commit()
 
     return jsonify({"result": "success"})
 
@@ -307,7 +321,6 @@ def share_file():
 def get_raw_file(filecode):
     attachment = request.args.get('a')
     #print(attachment)
-    json_filename = f"{filecode}.json"
     session_username = current_user.username
 
     if attachment == "False":
@@ -315,31 +328,21 @@ def get_raw_file(filecode):
     else:
         attachment = True
     
-    #PESCA IL FILE .JSON (fare un database era meglio...)
-    user_dir = FILES_ROOT + '/' + str(session_username)
-    #print(user_dir)
-    user_folders = [f for f in os.listdir(user_dir) if os.path.isdir(os.path.join(user_dir, f))]
-    #print(user_folders)
+    try:
+        cur.execute('SELECT * FROM files WHERE file_code = %s AND owner = %s', (int(filecode), format(session_username)))
+        result = cur.fetchall()
+    except Error as e:
+        print("Error during SQL query: ", e)
+        return jsonify({"result": "error", "error_text": e})
+    
+    if result:
+        for row in result:
+            original_path = row[5]
 
-    all_files = []
-
-    for folder in user_folders:
-        folder_path = os.path.join(user_dir, folder)
-        if os.path.isdir(folder_path):
-            json_file_path = find_json_file(folder_path, filecode)
-            if json_file_path:
-                with open(json_file_path, 'r') as json_file:
-                    file_data = json.load(json_file)
-                    owner = file_data.get('owner')
-                    original_path = file_data.get('original_path')
-                    original_filename = file_data.get('filename')
-
-                    if owner == current_user.username:
-                        return send_file(original_path, as_attachment=attachment)
-                    else:
-                        return "You cannot access this file", 401
-
-    return "File not found", 404
+        return send_file(original_path, as_attachment=attachment)
+    else:
+        return "File not found", 404
+            
 
     
         

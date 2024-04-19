@@ -211,8 +211,8 @@
                             <div class="modal-body">
                                 <input type="hidden" id="hiddenFileCode" value="">
                                 <p>Share link: <a href="" id="shareLink"></a></p>
-                                <p>Choose who can access (type a list of users email separated by a comma)</p>
-                                <input type="text" class="form-control" id="shareUsers" placeholder="Search users...">
+                                <p class="fw-bold">Choose who can access</p>
+                                <input type="text" class="form-control" id="shareUsers" placeholder="Type a list of users email (separated by a comma)">
                                 <p style="font-size: 13px;">You can share this file as public by not typing anything in this form.</p>
                             </div>
                             <div class="modal-footer">
@@ -272,6 +272,7 @@
                         alert(data.error_text);
                     } else {
                         alert('File shared succeffully!')
+                        location.reload()
                     }
                 }
             });
