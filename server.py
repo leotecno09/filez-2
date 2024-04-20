@@ -58,6 +58,10 @@ def find_json_file(folder_path, filecode):
                 return os.path.join(root, file_name)
     return None
 
+@app.route('/')
+def welcome():
+    return "Welcome"
+
 @app.route('/dashboard')
 @login_required
 def root():
@@ -150,11 +154,13 @@ def logout():
     logout_user()
     return redirect(url_for('login'))
 
-@app.route('/api/get_files')                                        # DA RIVEDERE E MIGLIORARE
+@app.route('/api/get_files')
+@login_required                                        # DA RIVEDERE E MIGLIORARE
 def get_files():
     location = request.args.get('location', default='my_files')
     print(location)
     session_username = current_user.username
+    print(session_username)
 
     files = []
 
@@ -320,16 +326,16 @@ def share_file():
 @login_required
 def get_raw_file(filecode):
     attachment = request.args.get('a')
-    #print(attachment)
     session_username = current_user.username
+    session_id = current_user.id
 
     if attachment == "False":
         attachment = False
     else:
         attachment = True
-    
+
     try:
-        cur.execute('SELECT * FROM files WHERE file_code = %s AND owner = %s', (int(filecode), format(session_username)))
+        cur.execute("SELECT * FROM files WHERE file_code = %s", (int(filecode),))
         result = cur.fetchall()
     except Error as e:
         print("Error during SQL query: ", e)
@@ -337,13 +343,101 @@ def get_raw_file(filecode):
     
     if result:
         for row in result:
+            filename = row[0]
+            shared = row[6]
+            owner = row[1]
             original_path = row[5]
 
-        return send_file(original_path, as_attachment=attachment)
-    else:
-        return "File not found", 404
-            
+        if owner == session_username:
+            return send_file(original_path, as_attachment=attachment)
 
+        if shared == "True":
+                    
+                    # CHECK IF THE USER CAN ACCESS IT
+            try:
+                cur.execute("SELECT * FROM file_user_shared WHERE file_code = %s", (int(filecode),))
+                result = cur.fetchall()
+            except Error as e:
+                print("Error during SQL query: ", e)
+                return jsonify({"result": "error", "error_text": e})
+
+            if result:
+                whoHasAccess = []
+                for row in result:
+                    user_id = row[1]
+                    #print(user_id)
+                    whoHasAccess.append(user_id)
+                    #whoHasAccess.append("fakeuser")
+                        
+                if int(current_user.id) in whoHasAccess:
+                    #return "Hai l'accesso"
+                    #return render_template('view_shared_file.html', filename=filename, filecode=filecode)
+                    return send_file(original_path, as_attachment=attachment)
+                else:
+                    return render_template("general_error.html", error="Cannot access this file", error_code="403")
+            else:
+                return send_file(original_path, as_attachment=attachment)
+        else:
+            return render_template("general_error.html", error="File not shared", error_code="403")
+    
+    else:
+        return render_template("general_error.html", error="File not found", error_code="404")
+            
+@app.route('/s/<filecode>')
+@login_required
+def get_share(filecode):
+    session_username = current_user.username
+    session_id = current_user.id
+
+    try:
+        cur.execute("SELECT * FROM files WHERE file_code = %s", (int(filecode),))
+        result = cur.fetchall()
+    except Error as e:
+        print("Error during SQL query: ", e)
+        return jsonify({"result": "error", "error_text": e})
+    
+    if result:
+        for row in result:
+            filename = row[0]
+            shared = row[6]
+            owner = row[1]
+        
+        file_ext = filename.split('.')
+        file_ext = file_ext[1].upper()
+        print(file_ext)
+
+        if shared == "True":
+            if owner == session_username:
+                return render_template('view_shared_file.html', filename=filename, filecode=filecode, type=file_ext)
+                
+            # CHECK IF THE USER CAN ACCESS IT
+            try:
+                cur.execute("SELECT * FROM file_user_shared WHERE file_code = %s", (int(filecode),))
+                result = cur.fetchall()
+            except Error as e:
+                print("Error during SQL query: ", e)
+                return jsonify({"result": "error", "error_text": e})
+
+            if result:
+                whoHasAccess = []
+                for row in result:
+                    user_id = row[1]
+                    #print(user_id)
+                    whoHasAccess.append(user_id)
+                    #whoHasAccess.append("fakeuser")
+                    
+                if int(current_user.id) in whoHasAccess:
+                    #return "Hai l'accesso"
+                    return render_template('view_shared_file.html', filename=filename, filecode=filecode, type=file_ext)
+                else:
+                    return render_template("general_error.html", error="Cannot access this file", error_code="403")
+            else:
+                return render_template('view_shared_file.html', filename=filename, filecode=filecode, type=file_ext)
+        else:
+            return render_template("general_error.html", error="File not shared", error_code="403")
+    
+    else:
+        return render_template("general_error.html", error="File not found", error_code="404")
     
         
 if __name__ == '__main__':

@@ -258,6 +258,21 @@
             $('#shareModal').modal('show');
         }
 
+        function copyShareLink(filecode) {
+            var link = `http://127.0.0.1:8080/s/${filecode}`;
+            var textarea = document.createElement("textarea");
+            textarea.value = link;
+            
+            document.body.appendChild(textarea);
+            textarea.select();
+
+            document.execCommand("copy");
+            
+            document.body.removeChild(textarea);
+
+            alert("Link copied!");
+        }
+
         $('#submitShare').click(function() {
             $.ajax({
                 url: '/api/share_file',

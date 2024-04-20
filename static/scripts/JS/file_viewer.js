@@ -6,13 +6,19 @@ const fileViewerContent = document.getElementById('fileViewerContent');
 const closeBtn = document.getElementById('closeBtn');
 
 function openFileViewer(file, type) {
-    if (type === "png" || type === "jpg" || type === "jpeg") {
+    if (type === "PNG" || type === "JPG" || type === "JPEG") {
         fileViewerContent.innerHTML = `<img src="/r/${file}" alt="${file}" />`;
-    } else if (type === "mp4" || type === "mov") {
+    } else if (type === "MP4" || type === "MOV" || type === "MKV" || type === "AVI") {
         fileViewerContent.innerHTML = `
         <video controls>
             <source src="/r/${file}" type="video/mp4">
         </video>
+        `;
+    } else if (type === "MP3" || type === "WAV" || type === "OGG") {
+        fileViewerContent.innerHTML = `
+        <audio controls>
+            <source src="/r/${file}" type="audio/ogg">
+        </audio>
         `;
     } else {
         fileViewerContent.innerHTML = `

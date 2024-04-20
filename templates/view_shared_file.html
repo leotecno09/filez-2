@@ -5,8 +5,55 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
     </head>
-    <body>
-        <p>{{filename}}</p>
-        <!--TO FINISHHHH-->
+    <body style="background-color: rgb(37, 37, 37);">
+        <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+            <div class="container">
+                <span class="navbar-brand">{{filename}}</span>
+                <div class="ml-auto">
+                    <a href="/r/{{filecode}}"><button class="btn btn-primary mr-2">Download</button></a>
+                    <button class="btn btn-primary" onclick="copyRawLink('{{filecode}}')">Copy raw link</button>
+                </div>
+            </div>
+        </nav>
+        <div class="container-fluid" style="margin-top: 100px;">
+            <div class="row" style="margin-top: 100px;">
+                <div class="col d-flex justify-content-center align-items-center">
+                    <div class="text-center">
+                        {% if type == "JPG" or type == "PNG" or type == "JPEG" %}
+                            <img src="/r/{{filecode}}" class="d-flex align-items-center justify-content-center" style="max-height: 100%; max-width: 100%;">
+                        {% elif type == "MP4" or type == "MKV" or type == "MOV" or type == "AVI" %}
+                            <video height="auto" width="auto" controls>
+                                <source src="/r/{{filecode}}" type="video/mp4">
+                            </video>
+                        {% elif type == "MP3" or type == "WAV" or type == "OGG" %}
+                            <audio controls>
+                                <source src="/r/{{filecode}}" type="audio/ogg">
+                            </audio>
+                        {% else %}
+                            <h3 style="display: flex; align-items: center; justify-content: center; color: white;">Invalid file extension.</h3>
+                            <p style="color: white;">The FilEZ-Viewer 1.0 cannot open this file.<br>Please download or open as RAW to view.</p>
+                            <a href="/r/{{filecode}}"><button class="btn btn-primary btn-sm">Download</button></a>
+                            <a href="/r/{{filecode}}?a=False"><button class="btn btn-success btn-sm">View as RAW</button></a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script>
+            function copyRawLink(filecode) {
+                var link = `http://127.0.0.1:8080/r/${filecode}?a=False`;
+                var textarea = document.createElement("textarea");
+                textarea.value = link;
+                
+                document.body.appendChild(textarea);
+                textarea.select();
+
+                document.execCommand("copy");
+                
+                document.body.removeChild(textarea);
+
+                alert("Link copied!");
+            }
+        </script>
     </body>
 </html>
