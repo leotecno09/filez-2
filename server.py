@@ -4,6 +4,7 @@ import flask_login
 import random
 import json
 import datetime
+import shutil
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import LoginManager, UserMixin, login_user, login_required, current_user, logout_user
 from psycopg2 import Error
@@ -51,16 +52,36 @@ conn = psycopg2.connect(host = "192.168.0.199", database = "filez", user = "post
 cur = conn.cursor()
 
 #FUNZIONI BELLE A CASO (pt.2)
-def find_json_file(folder_path, filecode):
-    for root, dirs, files in os.walk(folder_path):
-        for file_name in files:
-            if file_name == f"{filecode}.json":
-                return os.path.join(root, file_name)
-    return None
+#def find_json_file(folder_path, filecode):
+#    for root, dirs, files in os.walk(folder_path):
+#        for file_name in files:
+#            if file_name == f"{filecode}.json":
+#                return os.path.join(root, file_name)
+#    return None
+
+def calcUserArchiveSize(folder):
+    suffix = ['B', 'KB', 'MB', 'GB']
+    suffixIndex = 0
+    size = 0
+
+    for root, dirs, files in os.walk(folder):
+        for file in files:
+            file_path = os.path.join(root, file)
+            size += os.path.getsize(file_path)
+
+    while size >= 1024 and suffixIndex < len(suffix) - 1:
+        size /= 1024.0
+        suffixIndex += 1
+    
+    return "{:.2f} {}".format(size, suffix[suffixIndex])
+
 
 @app.route('/')
 def welcome():
-    return "Welcome"
+    if current_user.is_authenticated:
+        return redirect('/dashboard?location=my_files')
+    else:
+        return render_template('welcome.html')
 
 @app.route('/dashboard')
 @login_required
@@ -171,6 +192,30 @@ def get_files():
         except Error as e:
             print("Error during SQL query: ", e)
             return jsonify({"result": "error", "error_text": e})
+
+        for row in rows:                                # fa un po' di casino forse... ma funziona
+            for _ in range(3):
+                path = os.path.dirname(row[5])
+            files.append({
+                'filename': row[0],
+                'owner': row[1],
+                'upload_date': row[2],
+                'location': row[3],
+                'file_code': row[4],
+                'original_path': row[5],
+                'shared': row[6],
+                'archive_size': calcUserArchiveSize(path)    
+            })
+
+            
+        return jsonify(files)
+    else:
+        try:
+            cur.execute('SELECT * FROM files WHERE location = %s AND owner = %s', (format(location), format(session_username)))
+            rows = cur.fetchall()
+        except Error as e:
+            print("Error during SQL query: ", e)
+            return jsonify({"result": "error", "error_text": e})
         
         for row in rows:
             files.append({
@@ -184,26 +229,6 @@ def get_files():
             })
         
         return jsonify(files)
-
-    try:
-        cur.execute('SELECT * FROM files WHERE location = %s AND owner = %s', (format(location), format(session_username)))
-        rows = cur.fetchall()
-    except Error as e:
-        print("Error during SQL query: ", e)
-        return jsonify({"result": "error", "error_text": e})
-    
-    for row in rows:
-        files.append({
-            'filename': row[0],
-            'owner': row[1],
-            'upload_date': row[2],
-            'location': row[3],
-            'file_code': row[4],
-            'original_path': row[5],
-            'shared': row[6]           
-        })
-    
-    return jsonify(files)
 
 
         
@@ -298,8 +323,11 @@ def share_file():
             try:
                 cur.execute("SELECT id FROM users WHERE email = %s", (format(user),))
                 results = cur.fetchone()
-                shareUsers_id.append(results)
-                print(shareUsers_id)
+                if results:
+                    shareUsers_id.append(results)
+                    print(shareUsers_id)
+                else:
+                    return jsonify({"result": "error", "error_text": "A user on the list was not found."})
             except Error as e:
                 print("Error during SQL query: ", e)
                 return jsonify({"result": "error", "error_text": e})
@@ -321,6 +349,69 @@ def share_file():
     conn.commit()
 
     return jsonify({"result": "success"})
+
+@app.route('/api/unshare_file', methods=['POST'])
+@login_required
+def unshare_file():
+    filecode = request.form['filecode']
+    #print(int(filecode))
+
+    try:
+        cur.execute("UPDATE files SET shared = %s WHERE file_code = %s", (format("False"), int(filecode)))
+        conn.commit()
+    except Error as e:
+        print("Error during SQL query: ", e)
+        return jsonify({"result": "error", "error_text": e})
+
+    try:
+        cur.execute("DELETE FROM file_user_shared WHERE file_code = %s", (filecode,))
+        conn.commit()
+    except Error as e:
+        print("Error during SQL query: ", e)
+        return jsonify({"result": "error", "error_text": e})
+    
+    return jsonify({"result": "success"})
+
+@app.route('/api/move_to_trash', methods=['POST'])
+def moveToTrash():
+    filecode = request.form['filecode']
+    filename = request.form['filename']
+    trash_path = f"users/uploads/{current_user.username}/trash/{filename}"
+
+    try:
+        cur.execute("SELECT * FROM files WHERE file_code = %s", (filecode,))
+        result = cur.fetchall()
+        cur.execute("SELECT * FROM file_user_shared WHERE file_code = %s", (filecode,))
+        resultShares = cur.fetchall()
+    except Error as e:
+        print("Error during SQL query: ", e)
+        return jsonify({"result": "error", "error_text": e})
+    
+    for row in result:
+        original_path = row[5]
+
+    if not os.path.exists(trash_path):
+        os.makedirs(trash_path)
+
+    if resultShares:
+        try:
+            cur.execute("DELETE FROM file_user_shared WHERE file_code = %s", (filecode,))
+            conn.commit()
+        except Error as e:
+            print("Error during SQL query: ", e)
+            return jsonify({"result": "error", "error_text": e})
+
+    
+    try:
+        cur.execute("UPDATE files SET location = %s WHERE file_code = %s", (format("trash"), int(filecode)))
+        conn.commit()
+    except Error as e:
+        print("Error during SQL query: ", e)
+        return jsonify({"result": "error", "error_text": e})
+
+    shutil.move(original_path, trash_path)
+
+    return jsonify({"status": "success"})
 
 @app.route('/r/<filecode>')
 @login_required

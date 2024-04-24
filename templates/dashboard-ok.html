@@ -167,7 +167,7 @@
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" href="#">
+                                <a class="nav-link" href="#" id="sizeText">
                                     20 MB used of 10GB
                                 </a>
                             </li>
@@ -222,6 +222,51 @@
                     </div>
                 </div>
 
+                <div class="modal fade" id="unShareModal" tabindex="-1" role="dialog" aria-labelledby="unShareModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered" role="document">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="unShareModalTitle"></h5>
+                                <button type="button" style="background: none; border: none;" data-dismiss="modal" aria-label="Close">
+                                    <span aria-hidden="true">&times;</span>
+                                </button>
+                            </div>
+                            <div class="modal-body text-center">
+                                <input type="hidden" id="hiddenFileCodeUnshare" value="">
+                                <h3 id="unshareModalContent"></h3>
+                                <p>All users with whom you shared the file will lose access.</p>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-danger" id="submitUnshare">Confirm</button>
+                                <button type="button" class="btn btn-success" data-dismiss="modal">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal fade" id="moveToTrashModal" tabindex="-1" role="dialog" aria-labelledby="moveToTrashModal" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered" role="document">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="moveToTrashModalTitle"></h5>
+                                <button type="button" style="background: none; border: none;" data-dismiss="modal" aria-label="Close">
+                                    <span aria-hidden="true">&times;</span>
+                                </button>
+                            </div>
+                            <div class="modal-body text-center">
+                                <input type="hidden" id="hiddenFileCodeMtt" value="">
+                                <input type="hidden" id="hiddenFileName" value="">
+                                <h3 id="moveToTrashContent"></h3>
+                                <p>This will not delete the file, you can recover it from the trash until you permanently delete it.</p>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-danger" id="submitMoveToTrash">Move to trash</button>
+                                <button type="button" class="btn btn-success" data-dismiss="modal">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div id="file-drop-overlay" class="drop-overlay">
                     Release files to upload.
                 </div>
@@ -249,6 +294,16 @@
     <script src="/static/scripts/JS/file_viewer.js"></script>
     <!--script src="/static/scripts/JS/share_modal.js"></script!-->
     <script>
+        function openUnshareModal(filename, filecode) {
+            document.getElementById('unShareModalTitle').textContent = `Unshare (${filename})`
+            //document.getElementById('shareLink').textContent = `http://127.0.0.1:8080/s/${filecode}`
+            document.getElementById('hiddenFileCodeUnshare').setAttribute('value', `${filecode}`)
+            //shareLink.setAttribute('href', `http://127.0.0.1:8080/s/${filecode}`)
+            document.getElementById('unshareModalContent').textContent = `Are you sure to unshare ${filename}?`
+
+            $('#unShareModal').modal('show');
+        }
+
         function openShareModal(filename, filecode) {
             document.getElementById('shareModalTitle').textContent = `Share a file (${filename})`
             document.getElementById('shareLink').textContent = `http://127.0.0.1:8080/s/${filecode}`
@@ -256,6 +311,17 @@
             shareLink.setAttribute('href', `http://127.0.0.1:8080/s/${filecode}`)
 
             $('#shareModal').modal('show');
+        }
+
+        function moveToTrashModal(filename, filecode) {
+            document.getElementById('moveToTrashModalTitle').textContent = `Move to trash (${filename})`
+            //document.getElementById('shareLink').textContent = `http://127.0.0.1:8080/s/${filecode}`
+            document.getElementById('hiddenFileCodeMtt').setAttribute('value', `${filecode}`)
+            document.getElementById('hiddenFileName').setAttribute('value', `${filename}`)
+            //shareLink.setAttribute('href', `http://127.0.0.1:8080/s/${filecode}`)
+            document.getElementById('moveToTrashContent').textContent = `Are you sure to move to trash ${filename}?`
+
+            $('#moveToTrashModal').modal('show');
         }
 
         function copyShareLink(filecode) {
@@ -287,6 +353,47 @@
                         alert(data.error_text);
                     } else {
                         alert('File shared succeffully!')
+                        location.reload()
+                    }
+                }
+            });
+        });
+
+        $('#submitUnshare').click(function() {
+            $.ajax({
+                url: '/api/unshare_file',
+                type: 'POST',
+                data: {
+                    filecode: $('#hiddenFileCodeUnshare').val(),
+                    //shareUsers: $('#shareUsers').val()
+                },
+                dataType: 'json',
+                success: function(data) {
+                    if (data.result === "error") {
+                        alert(data.error_text);
+                    } else {
+                        alert('File unshared succeffully!')
+                        location.reload()
+                    }
+                }
+            });
+        });
+
+        $('#submitMoveToTrash').click(function() {
+            $.ajax({
+                url: '/api/move_to_trash',
+                type: 'POST',
+                data: {
+                    filecode: $('#hiddenFileCodeMtt').val(),
+                    filename: $('#hiddenFileName').val()
+                    //shareUsers: $('#shareUsers').val()
+                },
+                dataType: 'json',
+                success: function(data) {
+                    if (data.result === "error") {
+                        alert(data.error_text);
+                    } else {
+                        alert('File moved to trash.')
                         location.reload()
                     }
                 }

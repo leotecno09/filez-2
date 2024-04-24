@@ -1,0 +1,75 @@
+<style>
+    .text-reflect {
+        color: #333;
+        text-shadow: 0 1px 0 #fff, 0 2px 0 #eaeaea, 0 3px 0 #ccc;
+    }
+
+    .reflect {
+        display: block;
+        transform: scaleY(-1);
+        opacity: 0.3;
+        mask-image: linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(255, 255, 255, 1));
+    }
+</style>
+
+<html>
+    <head>
+        <title>FilEZ 2.0 | Welcome page.</title>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+        <nav class="navbar navbar-expand-lg navbar-light navbar-dark navbar-shadow shadow-lg">
+            <a class="navbar-brand">&nbsp;</a>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link text-black" href="/account/login">Login</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-black" href="/account/login">Register</a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+    </head>
+    <body style="background-color: rgba(206, 221, 221, 0.767);">
+        <div class="text-center">
+            <h1 class="text-reflect" style="font-size: 150px;">FilEZ 2.0</h1>
+            <h1 class="text-reflect reflect" style="font-size: 150px;">FilEZ 2.0</h1>
+            <br>
+            <div class="container">
+                <div class="row">
+                    <div class="col-sm-6">
+                        <p style="font-style: italic;">"The new version of FilEZ, the fake Google Drive coded by LeoTecno<br>It's useful, easy and open source!"<br><br><br><a href="https://github.com/leotecno09/filez-2/tree/master">https://github.com/leotecno09/filez-2/tree/master</a></p>
+                    </div>
+                    <div class="col-sm-6 d-none d-sm-block">
+                        <a href="https://github.com/leotecno09"><img src="https://avatars.githubusercontent.com/u/107548514?v=4"></a>
+                    </div>
+                </div>
+            </div>
+            <hr>
+            <h3>Create your free account!</h3>
+            <br>
+            <a href="/account/register"><button class="btn btn-primary">REGISTER</button></a>
+            <br>
+            <br>
+            <h3>OR...</h3>
+            <br>
+            <a href="/account/login"><button class="btn btn-success">LOGIN</button></a>
+            <br>
+            <br>
+        </div>
+        <footer class="bg-dark text-center text-lg-start shadow-lg">
+            <div class="text-center text-white p-3">
+                <div id="randomText"></div>
+                <br>
+                © 2024 Copyright<br>
+                leotecno.it
+            </div>
+        </footer>
+        <script src="/static/scripts/JS/random_footer_text.js"></script>
+    </body>
+</html>

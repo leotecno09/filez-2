@@ -29,6 +29,10 @@ function updateFileTable(files) {
 
     files.forEach(file => {
         const newRow = document.createElement('tr')
+
+        const sizeText = document.getElementById('sizeText')
+        sizeText.textContent = `${file.archive_size} used of 10GB`
+
         const file_type_lowercase = `${file.filename}`.split('.').pop();
         const file_type = file_type_lowercase.toUpperCase();
         console.log(file_type);
@@ -39,8 +43,8 @@ function updateFileTable(files) {
             <td>${file.location}</td>
             <td>
                 <a href="/r/${file.file_code}"><button class="btn btn-primary btn-sm">Download</button></a>
-                ${file.shared === "True" ? `<button class="btn btn-danger btn-sm">Unshare</button>&nbsp;<button class="btn btn-success btn-sm" onclick="copyShareLink(${file.file_code})">Copy share link</button>` : `<button class="btn btn-primary btn-sm shareBtn" onclick="openShareModal('${file.filename}', '${file.file_code}')">Share</button>`}
-                <button class="btn btn-danger btn-sm">Delete</button>
+                ${file.shared === "True" ? `<button class="btn btn-danger btn-sm" onclick="openUnshareModal('${file.filename}', '${file.file_code}')">Unshare</button>&nbsp;<button class="btn btn-success btn-sm" onclick="copyShareLink(${file.file_code})">Copy share link</button>` : `<button class="btn btn-primary btn-sm shareBtn" onclick="openShareModal('${file.filename}', '${file.file_code}')">Share</button>`}
+                <button class="btn btn-danger btn-sm" onclick="moveToTrashModal('${file.filename}', '${file.file_code}')">Move to trash</button>
             </td>
         `;
         fileTableBody.appendChild(newRow);
