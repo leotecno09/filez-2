@@ -17,12 +17,12 @@ function loadFiles(location) {
     fetch(url)
         .then(response => response.json())
         .then(data => {
-            updateFileTable(data);
+            updateFileTable(data, location);
         })
         .catch(error => console.error('Error during file loading: ', error));
 }
 
-function updateFileTable(files) {
+function updateFileTable(files, location) {
     const fileTableBody = document.querySelector('#file-table tbody');
 
     fileTableBody.innerHTML = '';
@@ -31,11 +31,26 @@ function updateFileTable(files) {
         const newRow = document.createElement('tr')
 
         const sizeText = document.getElementById('sizeText')
+
         sizeText.textContent = `${file.archive_size} used of 10GB`
 
         const file_type_lowercase = `${file.filename}`.split('.').pop();
         const file_type = file_type_lowercase.toUpperCase();
         console.log(file_type);
+
+        if (location == "trash") {
+            newRow.innerHTML = `
+                <td><a href="#" onclick="alert('You need to restore this file to see it.')">${file.filename}</a></td>
+                <td>${file.upload_date}</td>
+                <td>${file.owner}</td>
+                <td>${file.location}</td>
+                <td>
+                    <button class="btn btn-primary btn-sm" onclick="openRecoverModal('${file.filename}', '${file.file_code}')">Restore</button>
+                    <button class="btn btn-danger btn-sm" onclick="openDeleteModal('${file.filename}', '${file.file_code}')">Delete permanently</button>
+                </td>
+            `;
+            fileTableBody.appendChild(newRow);
+        } else {
         newRow.innerHTML = `
             <td><a href="#" onclick="openFileViewer(${file.file_code}, '${file_type}')">${file.filename}</a></td>
             <td>${file.upload_date}</td>
@@ -48,6 +63,7 @@ function updateFileTable(files) {
             </td>
         `;
         fileTableBody.appendChild(newRow);
+        }
     });
 }
 

@@ -31,6 +31,11 @@ function uploadFiles(files) {
 
     var uploadLocation = getUrlParamater('location');
 
+    if (uploadLocation == "trash") {
+        alert("You cannot upload files here.");
+        window.location.href = "/dashboard?location=my_files";
+    }
+
     formData.append('location', uploadLocation);
 
     for (var i = 0; i < files.length; i++) {

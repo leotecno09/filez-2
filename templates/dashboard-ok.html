@@ -162,13 +162,8 @@
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" href="#">
-                                    Recents
-                                </a>
-                            </li>
-                            <li class="nav-item">
                                 <a class="nav-link" href="#" id="sizeText">
-                                    20 MB used of 10GB
+                                    0 MB used of 10GB
                                 </a>
                             </li>
                         </ul>
@@ -267,6 +262,57 @@
                     </div>
                 </div>
 
+                <div class="modal fade" id="recoverFileModal" tabindex="-1" role="dialog" aria-labelledby="recoverFileModal" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered" role="document">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="recoverFileModalTitle"></h5>
+                                <button type="button" style="background: none; border: none;" data-dismiss="modal" aria-label="Close">
+                                    <span aria-hidden="true">&times;</span>
+                                </button>
+                            </div>
+                            <div class="modal-body text-center">
+                                <input type="hidden" id="hiddenFileCodeRecover" value="">
+                                <input type="hidden" id="hiddenFileNameRecover" value="">
+                                <h3 id="recoverFileContent"></h3>
+                                <p>This file will be restored in my_files</p>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-danger" id="submitRecover">Restore</button>
+                                <button type="button" class="btn btn-success" data-dismiss="modal">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal fade" id="deleteFileModal" tabindex="-1" role="dialog" aria-labelledby="deleteFileModal" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered" role="document">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="deleteFileModalTitle"></h5>
+                                <button type="button" style="background: none; border: none;" data-dismiss="modal" aria-label="Close">
+                                    <span aria-hidden="true">&times;</span>
+                                </button>
+                            </div>
+                            <div class="modal-body text-center">
+                                <input type="hidden" id="hiddenFileCodeDelete" value="">
+                                <input type="hidden" id="hiddenFileNameDelete" value="">
+                                <h5 id="deleteFileContent"></h5>
+                                <span>You need to insert your password to permanently delete a file.</span>
+                                <br>
+                                <br>
+                                <input class="form-control form-control-sm" type="password" id="password" placeholder="Insert your password">
+                                <br>
+                                <p style="color: red;">This action is not reversible.</p>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-danger" id="submitDelete">Delete</button>
+                                <button type="button" class="btn btn-success" data-dismiss="modal">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div id="file-drop-overlay" class="drop-overlay">
                     Release files to upload.
                 </div>
@@ -294,6 +340,7 @@
     <script src="/static/scripts/JS/file_viewer.js"></script>
     <!--script src="/static/scripts/JS/share_modal.js"></script!-->
     <script>
+        // MODALS
         function openUnshareModal(filename, filecode) {
             document.getElementById('unShareModalTitle').textContent = `Unshare (${filename})`
             //document.getElementById('shareLink').textContent = `http://127.0.0.1:8080/s/${filecode}`
@@ -324,6 +371,25 @@
             $('#moveToTrashModal').modal('show');
         }
 
+        function openRecoverModal(filename, filecode) {
+            document.getElementById('recoverFileModalTitle').textContent = `Restore file (${filename})`
+            document.getElementById('hiddenFileCodeRecover').setAttribute('value', `${filecode}`)
+            document.getElementById('hiddenFileNameRecover').setAttribute('value', `${filename}`)
+            document.getElementById('recoverFileContent').textContent = `Do you want to restore ${filename}?`
+
+            $('#recoverFileModal').modal('show');
+        }
+
+        function openDeleteModal(filename, filecode) {
+            document.getElementById('deleteFileModalTitle').textContent = `Delete file (${filename})`
+            document.getElementById('hiddenFileCodeDelete').setAttribute('value', `${filecode}`)
+            document.getElementById('hiddenFileNameDelete').setAttribute('value', `${filename}`)
+            document.getElementById('deleteFileContent').textContent = `Are you sure you want to delete ${filename}?`
+
+            $('#deleteFileModal').modal('show');
+        }
+
+        // SOME FUNCTIIONS...
         function copyShareLink(filecode) {
             var link = `http://127.0.0.1:8080/s/${filecode}`;
             var textarea = document.createElement("textarea");
@@ -339,6 +405,7 @@
             alert("Link copied!");
         }
 
+        // AJAX
         $('#submitShare').click(function() {
             $.ajax({
                 url: '/api/share_file',
@@ -352,7 +419,7 @@
                     if (data.result === "error") {
                         alert(data.error_text);
                     } else {
-                        alert('File shared succeffully!')
+                        alert('File shared successfully!')
                         location.reload()
                     }
                 }
@@ -372,7 +439,7 @@
                     if (data.result === "error") {
                         alert(data.error_text);
                     } else {
-                        alert('File unshared succeffully!')
+                        alert('File unshared successfully!')
                         location.reload()
                     }
                 }
@@ -394,6 +461,48 @@
                         alert(data.error_text);
                     } else {
                         alert('File moved to trash.')
+                        location.reload()
+                    }
+                }
+            });
+        });
+
+        $('#submitRecover').click(function() {
+            $.ajax({
+                url: '/api/restore_file',
+                type: 'POST',
+                data: {
+                    filecode: $('#hiddenFileCodeRecover').val(),
+                    filename: $('#hiddenFileNameRecover').val()
+                    //shareUsers: $('#shareUsers').val()
+                },
+                dataType: 'json',
+                success: function(data) {
+                    if (data.result === "error") {
+                        alert(data.error_text);
+                    } else {
+                        alert('File restored to my_files')
+                        location.reload()
+                    }
+                }
+            });
+        });
+
+        $('#submitDelete').click(function() {
+            $.ajax({
+                url: '/api/delete_file',
+                type: 'POST',
+                data: {
+                    filecode: $('#hiddenFileCodeDelete').val(),
+                    filename: $('#hiddenFileNameDelete').val(),
+                    password: $('#password').val()
+                },
+                dataType: 'json',
+                success: function(data) {
+                    if (data.result === "error") {
+                        alert(data.error_text);
+                    } else {
+                        alert('File deleted successfully.')
                         location.reload()
                     }
                 }

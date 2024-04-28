@@ -196,6 +196,10 @@ def get_files():
         for row in rows:                                # fa un po' di casino forse... ma funziona
             for _ in range(3):
                 path = os.path.dirname(row[5])
+            
+            if row[3] == "trash":
+                continue 
+
             files.append({
                 'filename': row[0],
                 'owner': row[1],
@@ -218,6 +222,9 @@ def get_files():
             return jsonify({"result": "error", "error_text": e})
         
         for row in rows:
+            for _ in range(3):
+                path = os.path.dirname(row[5])
+
             files.append({
                 'filename': row[0],
                 'owner': row[1],
@@ -225,7 +232,8 @@ def get_files():
                 'location': row[3],
                 'file_code': row[4],
                 'original_path': row[5],
-                'shared': row[6]           
+                'shared': row[6],
+                'archive_size': calcUserArchiveSize(path)        
             })
         
         return jsonify(files)
@@ -244,6 +252,9 @@ def upload():
 
     if location == "":
         location = "my_files"
+
+    if location == "trash":
+        return jsonify({"status": "error", "error_text": "You cannot upload files here."})
 
     for file in files:
         if file.filename == '':
@@ -376,7 +387,7 @@ def unshare_file():
 def moveToTrash():
     filecode = request.form['filecode']
     filename = request.form['filename']
-    trash_path = f"users/uploads/{current_user.username}/trash/{filename}"
+    trash_path = f"users/uploads/{current_user.username}/trash/"
 
     try:
         cur.execute("SELECT * FROM files WHERE file_code = %s", (filecode,))
@@ -412,6 +423,64 @@ def moveToTrash():
     shutil.move(original_path, trash_path)
 
     return jsonify({"status": "success"})
+
+@app.route('/api/restore_file', methods=['POST'])
+@login_required
+def restore_file():
+    filecode = request.form['filecode']
+    filename = request.form['filename']
+
+    my_files_path = f"users/uploads/{current_user.username}/my_files/"
+    trash_path = f"users/uploads/{current_user.username}/trash/{filename}"
+
+    try:
+        cur.execute("UPDATE files SET location = %s WHERE file_code = %s", (format("my_files"), int(filecode)))
+        conn.commit()
+    except Error as e:
+        print("Error during SQL query: ", e)
+        return jsonify({"result": "error", "error_text": e})
+
+    shutil.move(trash_path, my_files_path)
+
+    return jsonify({"status": "success"})
+
+@app.route('/api/delete_file', methods=['POST'])
+@login_required
+def delete_file():
+    filecode = request.form['filecode']
+    filename = request.form['filename']
+    password = request.form['password']
+
+    user_id = current_user.id
+
+    file_to_delete = f"users/uploads/{current_user.username}/trash/{filename}"
+
+    try:
+        cur.execute("SELECT * FROM users WHERE id = %s", (int(user_id),))
+        result = cur.fetchall()
+    except Error as e:
+        print("Error during SQL query: ", e)
+        return jsonify({"result": "error", "error_text": e})
+
+    for column in result:           # oh, e funziona solo così
+        storedPassword = column[3]
+
+    if not check_password_hash(storedPassword, password):
+        return jsonify({"result": "error", "error_text": "Wrong password."})
+    
+    else:
+        
+        try:
+            cur.execute("DELETE FROM files WHERE file_code = %s", (filecode,))
+            conn.commit()
+        except Error as e:
+            print("Error during SQL query: ", e)
+            return jsonify({"result": "error", "error_text": e})
+
+        os.remove(file_to_delete)
+
+        return jsonify({"result": "success"})
+
 
 @app.route('/r/<filecode>')
 @login_required
