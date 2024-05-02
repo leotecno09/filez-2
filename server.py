@@ -176,7 +176,7 @@ def logout():
     return redirect(url_for('login'))
 
 @app.route('/api/get_files')
-@login_required                                        # DA RIVEDERE E MIGLIORARE
+@login_required                                      
 def get_files():
     location = request.args.get('location', default='my_files')
     print(location)
@@ -193,10 +193,7 @@ def get_files():
             print("Error during SQL query: ", e)
             return jsonify({"result": "error", "error_text": e})
 
-        for row in rows:                                # fa un po' di casino forse... ma funziona
-            for _ in range(3):
-                path = os.path.dirname(row[5])
-            
+        for row in rows:                                        
             if row[3] == "trash":
                 continue 
 
@@ -208,11 +205,56 @@ def get_files():
                 'file_code': row[4],
                 'original_path': row[5],
                 'shared': row[6],
-                'archive_size': calcUserArchiveSize(path)    
+                'archive_size': calcUserArchiveSize(f'users/uploads/{session_username}')    
             })
 
             
         return jsonify(files)
+
+    elif location == "folders":
+        folders = []
+
+        try:
+            cur.execute('SELECT * FROM folders WHERE owner = %s', (format(session_username),))
+            rows = cur.fetchall()
+        except Error as e:
+            print("Error during SQL query: ", e)
+            return jsonify({"result": "error", "error_text": e})
+
+        for column in rows:
+            folders.append({
+                'folder_name': column[0],
+                'owner': column[1],
+                'creation_date': column[2],
+                'shared': column[3],
+                'archive_size': calcUserArchiveSize(f'users/uploads/{session_username}')
+            })
+
+        return jsonify(folders)
+
+    elif location == "shared":
+        try:
+            print("HO CHIAMATO IL DB")
+            cur.execute('SELECT * FROM files WHERE shared = %s AND owner = %s', (format("True"), format(session_username)))
+            rows = cur.fetchall()
+        except Error as e:
+            print("Error during SQL query: ", e)
+            return jsonify({"result": "error", "error_text": e})
+        
+        for row in rows:
+            files.append({
+                'filename': row[0],
+                'owner': row[1],
+                'upload_date': row[2],
+                'location': row[3],
+                'file_code': row[4],
+                'original_path': row[5],
+                'shared': row[6],
+                'archive_size': calcUserArchiveSize(f'users/uploads/{session_username}')        
+            })
+        
+        return jsonify(files)       
+
     else:
         try:
             cur.execute('SELECT * FROM files WHERE location = %s AND owner = %s', (format(location), format(session_username)))
@@ -222,9 +264,6 @@ def get_files():
             return jsonify({"result": "error", "error_text": e})
         
         for row in rows:
-            for _ in range(3):
-                path = os.path.dirname(row[5])
-
             files.append({
                 'filename': row[0],
                 'owner': row[1],
@@ -233,7 +272,7 @@ def get_files():
                 'file_code': row[4],
                 'original_path': row[5],
                 'shared': row[6],
-                'archive_size': calcUserArchiveSize(path)        
+                'archive_size': calcUserArchiveSize(f'users/uploads/{session_username}')        
             })
         
         return jsonify(files)
@@ -481,13 +520,36 @@ def delete_file():
 
         return jsonify({"result": "success"})
 
+@app.route('/api/create_folder', methods=['POST'])
+@login_required
+def create_folder():
+    folder_name = request.form['folder_name']
+
+    new_folder = f"users/uploads/{current_user.username}/{folder_name}" 
+
+    if os.path.exists(new_folder):
+        return jsonify({"result": "error", "error_text": "A folder with this name already exists."})
+    
+    else:
+        creation_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        shared = "False"
+
+        try:
+            cur.execute('INSERT INTO folders (folder_name, owner, creation_date, shared)' 'VALUES (%s, %s, %s, %s)', (format(folder_name), format(current_user.username), format(creation_date), format(shared)))
+            conn.commit()
+        except Error as e:
+            print("Error during SQL query: ", e)
+            return jsonify({"result": "error", "error_text": e})
+                    
+        os.mkdir(new_folder)
+        return jsonify({"result": "success"})
 
 @app.route('/r/<filecode>')
-@login_required
 def get_raw_file(filecode):
     attachment = request.args.get('a')
-    session_username = current_user.username
-    session_id = current_user.id
+    #session_username = current_user.username
+    #session_id = current_user.id
 
     if attachment == "False":
         attachment = False
@@ -508,8 +570,9 @@ def get_raw_file(filecode):
             owner = row[1]
             original_path = row[5]
 
-        if owner == session_username:
-            return send_file(original_path, as_attachment=attachment)
+        if current_user.is_authenticated:
+            if owner == current_user.username:
+                return send_file(original_path, as_attachment=attachment)
 
         if shared == "True":
                     
@@ -528,13 +591,15 @@ def get_raw_file(filecode):
                     #print(user_id)
                     whoHasAccess.append(user_id)
                     #whoHasAccess.append("fakeuser")
-                        
-                if int(current_user.id) in whoHasAccess:
-                    #return "Hai l'accesso"
-                    #return render_template('view_shared_file.html', filename=filename, filecode=filecode)
-                    return send_file(original_path, as_attachment=attachment)
+                if current_user.is_authenticated:       
+                    if int(current_user.id) in whoHasAccess:
+                        #return "Hai l'accesso"
+                        #return render_template('view_shared_file.html', filename=filename, filecode=filecode)
+                        return send_file(original_path, as_attachment=attachment)
+                    else:
+                        return render_template("general_error.html", error="Cannot access this file", error_code="403")
                 else:
-                    return render_template("general_error.html", error="Cannot access this file", error_code="403")
+                    return redirect(url_for('login'))
             else:
                 return send_file(original_path, as_attachment=attachment)
         else:
@@ -544,10 +609,9 @@ def get_raw_file(filecode):
         return render_template("general_error.html", error="File not found", error_code="404")
             
 @app.route('/s/<filecode>')
-@login_required
 def get_share(filecode):
-    session_username = current_user.username
-    session_id = current_user.id
+    #session_username = current_user.username
+    #session_id = current_user.id
 
     try:
         cur.execute("SELECT * FROM files WHERE file_code = %s", (int(filecode),))
@@ -567,8 +631,9 @@ def get_share(filecode):
         print(file_ext)
 
         if shared == "True":
-            if owner == session_username:
-                return render_template('view_shared_file.html', filename=filename, filecode=filecode, type=file_ext)
+            if current_user.is_authenticated:
+                if owner == current_user.username:
+                    return render_template('view_shared_file.html', filename=filename, filecode=filecode, type=file_ext)
                 
             # CHECK IF THE USER CAN ACCESS IT
             try:
@@ -585,12 +650,15 @@ def get_share(filecode):
                     #print(user_id)
                     whoHasAccess.append(user_id)
                     #whoHasAccess.append("fakeuser")
-                    
-                if int(current_user.id) in whoHasAccess:
-                    #return "Hai l'accesso"
-                    return render_template('view_shared_file.html', filename=filename, filecode=filecode, type=file_ext)
+                if current_user.is_authenticated:    
+                    if int(current_user.id) in whoHasAccess:
+                        #return "Hai l'accesso"
+                        return render_template('view_shared_file.html', filename=filename, filecode=filecode, type=file_ext)
+                
+                    else:
+                        return render_template("general_error.html", error="Cannot access this file", error_code="403")
                 else:
-                    return render_template("general_error.html", error="Cannot access this file", error_code="403")
+                    return redirect(url_for('login'))
             else:
                 return render_template('view_shared_file.html', filename=filename, filecode=filecode, type=file_ext)
         else:

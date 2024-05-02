@@ -50,6 +50,18 @@ function updateFileTable(files, location) {
                 </td>
             `;
             fileTableBody.appendChild(newRow);
+        } else if (location == "folders") {
+            newRow.innerHTML = `
+                <td><a href="/dashboard?location=${file.folder_name}">${file.folder_name}</td>
+                <td>${file.creation_date}</td> 
+                <td>${file.owner}</td>
+                <td>Your archive</td>
+                <td>
+                    ${file.shared === "True" ? `<button class="btn btn-danger btn-sm" onclick="openUnshareModal('${file.filename}', '${file.file_code}')">Unshare</button>&nbsp;<button class="btn btn-success btn-sm" onclick="copyShareLink(${file.file_code})">Copy share link</button>` : `<button class="btn btn-primary btn-sm shareBtn" onclick="openShareModal('${file.filename}', '${file.file_code}')">Share</button>`}
+                    <button class="btn btn-danger btn-sm" onclick="moveToTrashModal('${file.filename}', '${file.file_code}')">Delete permanently</button>
+                </td>
+            `
+            fileTableBody.appendChild(newRow);
         } else {
         newRow.innerHTML = `
             <td><a href="#" onclick="openFileViewer(${file.file_code}, '${file_type}')">${file.filename}</a></td>
