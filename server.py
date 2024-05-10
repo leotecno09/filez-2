@@ -205,11 +205,11 @@ def get_files():
                 'file_code': row[4],
                 'original_path': row[5],
                 'shared': row[6],
-                'archive_size': calcUserArchiveSize(f'users/uploads/{session_username}')    
             })
 
-            
-        return jsonify(files)
+        archive_size = calcUserArchiveSize(f'users/uploads/{session_username}')    
+
+        return jsonify(files=files, archive_size=calcUserArchiveSize(f'users/uploads/{session_username}'))
 
     elif location == "folders":
         folders = []
@@ -227,10 +227,10 @@ def get_files():
                 'owner': column[1],
                 'creation_date': column[2],
                 'shared': column[3],
-                'archive_size': calcUserArchiveSize(f'users/uploads/{session_username}')
+                'foldercode': column[4]
             })
 
-        return jsonify(folders)
+        return jsonify(files=folders, archive_size=calcUserArchiveSize(f'users/uploads/{session_username}'))
 
     elif location == "shared":
         try:
@@ -249,11 +249,10 @@ def get_files():
                 'location': row[3],
                 'file_code': row[4],
                 'original_path': row[5],
-                'shared': row[6],
-                'archive_size': calcUserArchiveSize(f'users/uploads/{session_username}')        
+                'shared': row[6],       
             })
         
-        return jsonify(files)       
+        return jsonify(files=files, archive_size=calcUserArchiveSize(f'users/uploads/{session_username}'))       
 
     else:
         try:
@@ -271,11 +270,10 @@ def get_files():
                 'location': row[3],
                 'file_code': row[4],
                 'original_path': row[5],
-                'shared': row[6],
-                'archive_size': calcUserArchiveSize(f'users/uploads/{session_username}')        
+                'shared': row[6],      
             })
         
-        return jsonify(files)
+        return jsonify(files=files, archive_size=calcUserArchiveSize(f'users/uploads/{session_username}'))
 
 
         
@@ -486,14 +484,15 @@ def restore_file():
 @app.route('/api/delete_file', methods=['POST'])
 @login_required
 def delete_file():
+    thing_type = request.form['type']
     filecode = request.form['filecode']
     filename = request.form['filename']
     password = request.form['password']
 
     user_id = current_user.id
 
-    file_to_delete = f"users/uploads/{current_user.username}/trash/{filename}"
-
+    print(thing_type)
+    
     try:
         cur.execute("SELECT * FROM users WHERE id = %s", (int(user_id),))
         result = cur.fetchall()
@@ -509,16 +508,33 @@ def delete_file():
     
     else:
         
-        try:
-            cur.execute("DELETE FROM files WHERE file_code = %s", (filecode,))
-            conn.commit()
-        except Error as e:
-            print("Error during SQL query: ", e)
-            return jsonify({"result": "error", "error_text": e})
+        if thing_type == "folder":
+            thing_to_delete = f"users/uploads/{current_user.username}/{filename}"
 
-        os.remove(file_to_delete)
+            try:
+                cur.execute("DELETE FROM folders WHERE foldercode = %s", (filecode,))
+                cur.execute("DELETE FROM files WHERE location = %s", (filename,))
+                conn.commit()
+            except Error as e:
+                print("Error during SQL query: ", e)
+                return jsonify({"result": "error", "error_text": e})
 
-        return jsonify({"result": "success"})
+            shutil.rmtree(thing_to_delete)
+
+            return jsonify({"result": "success"})
+        else:
+            thing_to_delete = f"users/uploads/{current_user.username}/trash/{filename}"
+
+            try:
+                cur.execute("DELETE FROM files WHERE file_code = %s", (filecode,))
+                conn.commit()
+            except Error as e:
+                print("Error during SQL query: ", e)
+                return jsonify({"result": "error", "error_text": e})
+
+            os.remove(thing_to_delete)
+
+            return jsonify({"result": "success"})
 
 @app.route('/api/create_folder', methods=['POST'])
 @login_required
@@ -533,10 +549,12 @@ def create_folder():
     else:
         creation_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+        foldercode = ''.join([str(random.randint(0, 9)) for _ in range(13)])
+
         shared = "False"
 
         try:
-            cur.execute('INSERT INTO folders (folder_name, owner, creation_date, shared)' 'VALUES (%s, %s, %s, %s)', (format(folder_name), format(current_user.username), format(creation_date), format(shared)))
+            cur.execute('INSERT INTO folders (folder_name, owner, creation_date, shared, foldercode)' 'VALUES (%s, %s, %s, %s, %s)', (format(folder_name), format(current_user.username), format(creation_date), format(shared), int(foldercode),))
             conn.commit()
         except Error as e:
             print("Error during SQL query: ", e)

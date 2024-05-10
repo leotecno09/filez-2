@@ -17,22 +17,25 @@ function loadFiles(location) {
     fetch(url)
         .then(response => response.json())
         .then(data => {
-            updateFileTable(data, location);
+            const files = data.files;
+            const archiveSize = data.archive_size;
+            updateFileTable(files, location, archiveSize);
         })
         .catch(error => console.error('Error during file loading: ', error));
 }
 
-function updateFileTable(files, location) {
+function updateFileTable(files, location, archiveSize) {
+    console.log(files);
     const fileTableBody = document.querySelector('#file-table tbody');
 
     fileTableBody.innerHTML = '';
-
+    
     files.forEach(file => {
         const newRow = document.createElement('tr')
 
         const sizeText = document.getElementById('sizeText')
 
-        sizeText.textContent = `${file.archive_size} used of 10GB`
+        sizeText.textContent = `${archiveSize} used of 10GB`
 
         const file_type_lowercase = `${file.filename}`.split('.').pop();
         const file_type = file_type_lowercase.toUpperCase();
@@ -58,7 +61,7 @@ function updateFileTable(files, location) {
                 <td>Your archive</td>
                 <td>
                     ${file.shared === "True" ? `<button class="btn btn-danger btn-sm" onclick="openUnshareModal('${file.filename}', '${file.file_code}')">Unshare</button>&nbsp;<button class="btn btn-success btn-sm" onclick="copyShareLink(${file.file_code})">Copy share link</button>` : `<button class="btn btn-primary btn-sm shareBtn" onclick="openShareModal('${file.filename}', '${file.file_code}')">Share</button>`}
-                    <button class="btn btn-danger btn-sm" onclick="moveToTrashModal('${file.filename}', '${file.file_code}')">Delete permanently</button>
+                    <button class="btn btn-danger btn-sm" onclick="openDeleteModal('${file.folder_name}', '${file.foldercode}', 'folder')">Delete permanently</button>
                 </td>
             `
             fileTableBody.appendChild(newRow);

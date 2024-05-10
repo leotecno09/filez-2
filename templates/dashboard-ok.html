@@ -333,8 +333,9 @@
                             <div class="modal-body text-center">
                                 <input type="hidden" id="hiddenFileCodeDelete" value="">
                                 <input type="hidden" id="hiddenFileNameDelete" value="">
+                                <input type="hidden" id="hiddenTypeDelete" value="">
                                 <h5 id="deleteFileContent"></h5>
-                                <span>You need to insert your password to permanently delete a file.</span>
+                                <span>You need to insert your password to permanently delete something.</span>
                                 <br>
                                 <br>
                                 <input class="form-control form-control-sm" type="password" id="password" placeholder="Insert your password">
@@ -423,8 +424,15 @@
             $('#recoverFileModal').modal('show');
         }
 
-        function openDeleteModal(filename, filecode) {
-            document.getElementById('deleteFileModalTitle').textContent = `Delete file (${filename})`
+        function openDeleteModal(filename, filecode, type) {
+            console.log(type)
+            if (type == "folder") {
+                document.getElementById('deleteFileModalTitle').textContent = `Delete folder (${filename})`
+                document.getElementById('hiddenTypeDelete').setAttribute('value', 'folder')  
+            } else {
+                document.getElementById('deleteFileModalTitle').textContent = `Delete file (${filename})`
+                document.getElementById('hiddenTypeDelete').setAttribute('value', 'file')
+            }
             document.getElementById('hiddenFileCodeDelete').setAttribute('value', `${filecode}`)
             document.getElementById('hiddenFileNameDelete').setAttribute('value', `${filename}`)
             document.getElementById('deleteFileContent').textContent = `Are you sure you want to delete ${filename}?`
@@ -536,6 +544,7 @@
                 url: '/api/delete_file',
                 type: 'POST',
                 data: {
+                    type: $('#hiddenTypeDelete').val(),
                     filecode: $('#hiddenFileCodeDelete').val(),
                     filename: $('#hiddenFileNameDelete').val(),
                     password: $('#password').val()
@@ -545,7 +554,7 @@
                     if (data.result === "error") {
                         alert(data.error_text);
                     } else {
-                        alert('File deleted successfully.')
+                        alert("Deleted successfully!")
                         location.reload()
                     }
                 }
