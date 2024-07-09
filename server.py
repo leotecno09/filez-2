@@ -75,6 +75,10 @@ def calcUserArchiveSize(folder):
     
     return "{:.2f} {}".format(size, suffix[suffixIndex])
 
+# ERROR HANDLER
+@app.errorhandler(405)
+def method_not_allowed(e):
+    return render_template("general_error.html", error="Method not allowed.<br>Are you trying to use our APIs? See this guide: <a href='https://filez.leotecno.it/doc/using_api'>How to use our APIs</a>", error_code="405")
 
 @app.route('/')
 def welcome():
@@ -174,6 +178,11 @@ def login():
 def logout():
     logout_user()
     return redirect(url_for('login'))
+
+@app.route('/account/settings')
+@login_required
+def user_settings():
+    return render_template("user-settings.html")
 
 @app.route('/api/get_files')
 @login_required                                      
